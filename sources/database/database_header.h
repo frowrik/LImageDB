@@ -80,6 +80,10 @@ public:
     bool table_file_set_tag_create();
 
 public:
+    int32_t table_files_get_count();
+    bool    table_files_select( uint32_t offset, uint32_t& count, database_file* buffer_out );
+
+public:
     sqlite3* db = nullptr;
     
     bool sql_check_table(const char* name);

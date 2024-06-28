@@ -9,36 +9,6 @@ void Run_DrawDX11() {
     
 }
 
-
-//void create_table_() {
-//    if ( err_msg ) {
-//        sqlite3_free( err_msg );
-//        err_msg = NULL;
-//    }
-//
-//    snprintf( query, sizeof( query ), "%s", editor.GetText().c_str() );
-//
-//    char** new_result = NULL;
-//    int    new_rows   = 0;
-//    int    new_cols   = 0;
-//    rc                = sqlite3_get_table( db, query, &new_result, &new_rows, &new_cols, &err_msg );
-//    if ( rc != SQLITE_OK ) {
-//        fprintf( stderr, "SQL error: %s\n", err_msg );
-//        if ( new_result ) { sqlite3_free_table( new_result ); }
-//    } else if ( new_cols > 64 ) {
-//        fprintf( stderr, "Error %d > 64 columns\n", new_cols );
-//        if ( new_result ) { sqlite3_free_table( new_result ); }
-//    } else {
-//        if ( result ) {
-//            sqlite3_free_table( result );
-//            result = NULL;
-//        }
-//        result      = new_result;
-//        result_rows = new_rows;
-//        result_cols = new_cols;
-//    }
-//}
-
 bool Run_Init() {
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->Clear();
@@ -73,6 +43,70 @@ bool Run_Draw() {
         if ( ImGui::Button( "remove file link3" ) ) { database.table_file_set_tag_remove()
             ;
         }
+
+        ImGui::Separator();
+        {
+            auto count_all_record = database.table_files_get_count();
+            
+            static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
+            static ImGuiTableColumnFlags flagsColumn = ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_NoReorder;
+            if ( ImGui::BeginTable( "table_sorting", 9, flags, ImVec2( 0.0f, 0.0 ), 0.0f ) ) {
+                ImGui::TableSetupColumn( "id", flagsColumn, 0.0f, 1 );
+                ImGui::TableSetupColumn( "shortname", flagsColumn, 0.0f, 2 );
+                ImGui::TableSetupColumn( "filetype_id", flagsColumn, 0.0f, 3 );
+                ImGui::TableSetupColumn( "path_id", flagsColumn, 0.0f, 4 );
+                ImGui::TableSetupColumn( "path_to_file", flagsColumn, 0.0f, 5 );
+                ImGui::TableSetupColumn( "filesize", flagsColumn, 0.0f, 6 );
+                ImGui::TableSetupColumn( "filetimewrite", flagsColumn, 0.0f, 7 );
+                ImGui::TableSetupColumn( "md5", flagsColumn, 0.0f, 8 );
+                ImGui::TableSetupColumn( "name_miniature", flagsColumn, 0.0f, 9 );
+                ImGui::TableSetupScrollFreeze( 0, 1 );  // Make row always visible
+                ImGui::TableHeadersRow();
+                database_file    records[256];
+
+                ImGuiListClipper clipper;
+                clipper.Begin( count_all_record );
+                while ( clipper.Step() ) {
+                    uint32_t      offset = clipper.DisplayStart;
+                    uint32_t      neadcount = clipper.DisplayEnd - clipper.DisplayStart;
+                    while ( offset < clipper.DisplayEnd ) {
+                        uint32_t records_count = std::min( std::size( records ), (size_t)neadcount );
+                        if ( !database.table_files_select( offset, records_count, records ) ) break;
+                        if ( records_count == 0 ) break;
+
+                        for ( uint32_t i = 0; i < records_count; i++ ) {
+                            const database_file& file_ = records[i];
+                            ImGui::PushID( file_.id );
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%lld", file_.id );
+                            ImGui::TableNextColumn();
+                            ImGui::TextUnformatted( file_.shortname.c_str() );
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%d", file_.filetype_id );
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%d", file_.path_id );
+                            ImGui::TableNextColumn();
+                            ImGui::TextUnformatted( file_.path_to_file.c_str() );
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%lld", file_.filesize );
+                            ImGui::TableNextColumn();
+                            ImGui::Text( "%lld", file_.filetimewrite );
+                            ImGui::TableNextColumn();
+                            ImGui::TextUnformatted( file_.md5.c_str() );
+                            ImGui::TableNextColumn();
+                            ImGui::TextUnformatted( file_.name_miniature.c_str() );
+                            ImGui::PopID();
+                        }
+
+                        offset += records_count;
+                    }
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::Separator();
+
         ImGui::End();
     }
 

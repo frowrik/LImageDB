@@ -181,7 +181,105 @@ bool database_main::table_file_set_tag_create() {
     return true;
 }
 
+int32_t database_main::table_files_get_count() {
+    if ( !db ) return 0;
 
+    bool is = false;
+
+    sqlite3_stmt* stmt;
+    if ( sqlite3_prepare_v2( db, "SELECT COUNT(*) FROM files", -1, &stmt, NULL ) != SQLITE_OK ) {
+        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
+        return 0;
+    }
+
+    if ( sqlite3_step( stmt ) != SQLITE_ROW || sqlite3_column_count( stmt ) != 1 || sqlite3_column_type( stmt, 0 ) != SQLITE_INTEGER ) {
+        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
+        sqlite3_finalize( stmt );
+        return 0;
+    }
+
+    int i = sqlite3_column_int( stmt, 0 );
+
+    sqlite3_finalize( stmt );
+
+    return i;
+}
+
+#include <ctime>
+std::string std_time_t_to_datetime( std::time_t t) {
+    char   buffer[80];
+    tm*    ltm = localtime( &t );
+    strftime( buffer, sizeof( buffer ), "%Y-%m-%d %H:%M:%S", ltm );
+    return std::string( buffer );
+}
+
+std::time_t datetime_to_std_time_t( const char* datatime ) {
+    tm ltm = {};
+    sscanf( datatime, "%d/%d/%d-%d:%d:%d", &ltm.tm_year, &ltm.tm_mon, &ltm.tm_mday, &ltm.tm_hour, &ltm.tm_min, &ltm.tm_sec );
+    ltm.tm_year -= 1900;
+    ltm.tm_mon--;
+
+    std::time_t t = mktime( &ltm );
+    return t;
+}
+
+bool database_main::table_files_select(uint32_t offset, uint32_t& count, database_file* buffer_out) {
+    if ( !db ) return 0;
+
+    sqlite3_stmt* stmt;
+    if ( sqlite3_prepare_v2( db, "\
+        SELECT id, shortname, filetype_id, path_id, path_to_file, filesize, filetimewrite, md5, miniature \n\
+        FROM files \n\
+        ORDER BY id \n\
+        LIMIT (?) OFFSET (?)", -1, &stmt, NULL ) != SQLITE_OK ) {
+        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
+        return false;
+    }
+
+    if ( sqlite3_bind_int( stmt, 1, count ) != SQLITE_OK ) {
+        fprintf( stderr, "sqlite3_bind_text error : %s\n", sqlite3_errmsg( db ) );
+        sqlite3_finalize( stmt );
+        return false;
+    }
+    if ( sqlite3_bind_int( stmt, 2, offset ) != SQLITE_OK ) {
+        fprintf( stderr, "sqlite3_bind_text error : %s\n", sqlite3_errmsg( db ) );
+        sqlite3_finalize( stmt );
+        return false;
+    }
+
+    uint32_t return_count = 0;
+    int32_t rc;
+    while ( ( rc = sqlite3_step( stmt ) ) == SQLITE_ROW ) {
+        if ( sqlite3_column_count( stmt ) != 9 ) break;
+        database_file& ret = buffer_out[return_count];
+        ret.id              = sqlite3_column_int64( stmt, 0 );
+        const char* temp    =  (const char*)sqlite3_column_text( stmt, 1 );
+        ret.shortname       = temp ? temp : "";
+        ret.filetype_id     = sqlite3_column_int64( stmt, 2 );
+        ret.path_id         = sqlite3_column_int64( stmt, 3 );
+        temp                = (const char*)sqlite3_column_text( stmt, 4 );
+        ret.path_to_file    = temp ? temp : "";
+        ret.filesize        = sqlite3_column_int64( stmt, 5 );
+        ret.filetimewrite   = datetime_to_std_time_t( (const char*)sqlite3_column_text( stmt, 6 ) );
+        temp                = (const char*)sqlite3_column_text( stmt, 7 );
+        ret.md5             = temp ? temp : "";
+        temp                = (const char*)sqlite3_column_text( stmt, 8 );
+        ret.name_miniature  = temp ? temp : "";
+        return_count++;
+    }
+
+    if ( rc != SQLITE_DONE ) {
+        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
+        sqlite3_finalize( stmt );
+        return false;
+    }
+
+    sqlite3_finalize( stmt );
+
+    count = return_count;
+
+    return true;
+}
     
 void database_main::testfill() {
     sql_execute_noresult( "INSERT INTO tags (title) VALUES ( 'tag1' );" );
@@ -207,7 +305,7 @@ void database_main::testfill() {
     sql_execute_noresult( "INSERT INTO file_set_tag (file_id, tag_id) VALUES ( 3, 2 );" );
     sql_execute_noresult( "INSERT INTO file_set_tag (file_id, tag_id) VALUES ( 3, 3 );" );
     sql_execute_noresult( "INSERT INTO file_set_tag (file_id, tag_id) VALUES ( 2, 1 );" );
-
+    
     // SELECT * FROM files
     // SELECT id,shortname FROM files
     // SELECT * FROM files WHERE path_id = 1;
