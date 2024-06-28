@@ -62,9 +62,14 @@ set_target_properties("nfd" PROPERTIES FOLDER "deps")
 # sqlite
 include_directories("${DEPS_DIRECTORY}/sqlite")
 file(GLOB SQLLITE_SOURCES_FILES  "${DEPS_DIRECTORY}/sqlite/*.c" "${DEPS_DIRECTORY}/sqlite/*.h" )  
-add_library("sqlite" STATIC ${SQLLITE_SOURCES_FILES} )
+add_library("sqlite3" STATIC ${SQLLITE_SOURCES_FILES} )
 source_group("sources"  FILES  ${SQLLITE_SOURCES_FILES})
-set_target_properties("sqlite" PROPERTIES FOLDER "deps")
+set_target_properties("sqlite3" PROPERTIES FOLDER "deps")
+
+#######################################
+# SQLiteCpp
+add_subdirectory("${DEPS_DIRECTORY}/SQLiteCpp" SQLiteCpp)
+set_target_properties("SQLiteCpp" PROPERTIES FOLDER "deps")
 
 #######################################
 # import_stb
@@ -89,8 +94,9 @@ file(GLOB DB_SOURCES_FILES  "${SOURCES_DIRECTORY}/database/*.cpp" "${SOURCES_DIR
 add_library("database" STATIC ${DB_SOURCES_FILES} )
 source_group("sources"  FILES  ${DB_SOURCES_FILES})
 target_precompile_headers("database" PRIVATE "${SOURCES_DIRECTORY}/database/database_header.h")
-target_link_libraries("database" PUBLIC sqlite)
+target_link_libraries("database" PUBLIC "sqlite3")
 target_link_libraries("database" PUBLIC "application_base")
+target_link_libraries("database" PUBLIC "SQLiteCpp")
 
 #######################################
 # actions

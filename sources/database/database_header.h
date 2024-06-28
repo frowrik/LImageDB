@@ -6,6 +6,9 @@
 // database
 #include <sqlite3.h>
 
+// wraper
+#include <SQLiteCpp/SQLiteCpp.h>
+
 // описание тега
 struct database_tag {
     int64_t     id;     // уникальный ид
