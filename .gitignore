@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+
+#
+deps/glaze/
+deps/imgui-docking/
+deps/nativefiledialog-extended/
+deps/SDL/
+deps/stb/
+
+#
+docs/
+project/
+build/database/
+build/LImageDB.pdb
+build/imgui.ini
