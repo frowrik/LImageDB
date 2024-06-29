@@ -27,7 +27,7 @@ void Run_Free() {
 }
 
 bool Run_Draw() {
-    dbview.draw( database.db );
+    dbview.draw( database.db->getHandle() );
 
     {
         const ImGuiViewport* main_viewport = ImGui::GetMainViewport();

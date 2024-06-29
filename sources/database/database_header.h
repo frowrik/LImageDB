@@ -87,7 +87,7 @@ public:
     bool    table_files_select( uint32_t offset, uint32_t& count, database_file* buffer_out );
 
 public:
-    sqlite3* db = nullptr;
+    SQLite::Database* db = nullptr;
     
     bool sql_check_table(const char* name);
     bool sql_execute_noresult(const char* sql);

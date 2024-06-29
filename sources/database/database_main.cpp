@@ -20,69 +20,46 @@ void database_main::clear() {
 }
 
 bool database_main::open( const char* path ) {
-    int rc = sqlite3_open( path, &db );
-    if ( rc ) {
-        fprintf( stderr, "Failed to open database %s: %s", path, sqlite3_errmsg( db ) );
-        sqlite3_close( db );
+    try {
+        db = new SQLite::Database( path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE, 0, nullptr );
+        db->exec( "PRAGMA foreign_keys = ON" );
+    } catch ( std::exception& e ) {
+        fprintf( stderr, "Failed to open database %s: %s", path, e.what() );
         return false;
     }
-    sql_execute_noresult( "PRAGMA foreign_keys = ON" );
     return true;
 }
 
 void database_main::close() {
-    if ( db ) {
-        sqlite3_close( db );
-        db = nullptr;
-    }
+    if ( !db ) return;
+    delete db;
+    db = nullptr;
 }
 
 bool database_main::sql_execute_noresult(const char* sql) {
-    if ( !db ) return false;
-
-    sqlite3_stmt* stmt;
-    if ( sqlite3_prepare_v2( db, sql, -1, &stmt, NULL ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
+    try {
+        db->exec( sql );
+    } catch ( std::exception& e ) {
+        fprintf( stderr, "db->exec %s: \"%s\"", e.what(), sql );
         return false;
     }
-
-    if ( sqlite3_step( stmt ) != SQLITE_DONE ) {
-        fprintf( stderr, "sqlite3_step error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-
-    sqlite3_finalize( stmt );
-
     return true;
 }
 
 bool database_main::sql_check_table( const char* name ) {
     if ( !db ) return false;
-    
-    bool          is  = false;
-
-    sqlite3_stmt* stmt;
-    if ( sqlite3_prepare_v2( db, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = (?);", -1, &stmt, NULL ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        return false;
+    bool is = false;
+    try {
+        SQLite::Statement query( *db, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = (?);" );
+        query.bind( 1, name );
+        if ( query.tryExecuteStep() == SQLITE_ROW ) { 
+            std::string getname = query.getColumn( 0 );
+            is                  = (getname == name);
+        }
+    } catch ( std::exception& e ) {
+        fprintf( stderr, "db->query %s", e.what() );
     }
-
-    if ( sqlite3_bind_text( stmt, 1, name, -1, SQLITE_TRANSIENT ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_bind_text error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-
-    if ( sqlite3_step( stmt ) != SQLITE_ROW ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-
-    sqlite3_finalize( stmt );
-
-    return true;
+    return is;
 }
 
 
@@ -183,26 +160,14 @@ bool database_main::table_file_set_tag_create() {
 
 int32_t database_main::table_files_get_count() {
     if ( !db ) return 0;
-
-    bool is = false;
-
-    sqlite3_stmt* stmt;
-    if ( sqlite3_prepare_v2( db, "SELECT COUNT(*) FROM files", -1, &stmt, NULL ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        return 0;
-    }
-
-    if ( sqlite3_step( stmt ) != SQLITE_ROW || sqlite3_column_count( stmt ) != 1 || sqlite3_column_type( stmt, 0 ) != SQLITE_INTEGER ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return 0;
-    }
-
-    int i = sqlite3_column_int( stmt, 0 );
-
-    sqlite3_finalize( stmt );
-
-    return i;
+    try {
+        SQLite::Statement query( *db, "SELECT COUNT(*) FROM files" );
+        if ( query.tryExecuteStep() == SQLITE_ROW ) {
+            int32_t getcount = query.getColumn( 0 );
+            return getcount;
+        }
+    } catch ( std::exception& e ) { fprintf( stderr, "db->query %s", e.what() ); }
+    return 0;
 }
 
 #include <ctime>
@@ -224,61 +189,39 @@ std::time_t datetime_to_std_time_t( const char* datatime ) {
 }
 
 bool database_main::table_files_select(uint32_t offset, uint32_t& count, database_file* buffer_out) {
-    if ( !db ) return 0;
+    if ( !db ) return false;
+    try {
+        // Compile a SQL query, containing one parameter (index 1)
+        SQLite::Statement query( *db, "\
+            SELECT id, shortname, filetype_id, path_id, path_to_file, filesize, filetimewrite, md5, miniature \n\
+            FROM files \n\
+            ORDER BY id \n\
+            LIMIT (?) OFFSET (?)" 
+        );
+        query.bind( 1, count );
+        query.bind( 2, offset );
 
-    sqlite3_stmt* stmt;
-    if ( sqlite3_prepare_v2( db, "\
-        SELECT id, shortname, filetype_id, path_id, path_to_file, filesize, filetimewrite, md5, miniature \n\
-        FROM files \n\
-        ORDER BY id \n\
-        LIMIT (?) OFFSET (?)", -1, &stmt, NULL ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        return false;
+        count = 0;
+
+        while ( query.executeStep() ) {
+            database_file& ret = buffer_out[count];
+            ret.id               = query.getColumn( 0 );
+            ret.shortname        = query.getColumn( 1 ).getString();
+            ret.filetype_id      = query.getColumn( 2 );
+            ret.path_id          = query.getColumn( 3 );
+            ret.path_to_file     = query.getColumn( 4 ).getString();
+            ret.filesize         = (uint32_t)query.getColumn( 5 );
+            ret.filetimewrite    = datetime_to_std_time_t( query.getColumn( 6 ).getText() );
+            ret.md5              = query.getColumn( 7 ).getString();
+            ret.name_miniature   = query.getColumn( 8 ).getString();
+            count++;
+        }
+
+        return true;
+    } catch ( std::exception& e ) {
+        fprintf( stderr, "db->query %s", e.what() );
     }
-
-    if ( sqlite3_bind_int( stmt, 1, count ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_bind_text error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-    if ( sqlite3_bind_int( stmt, 2, offset ) != SQLITE_OK ) {
-        fprintf( stderr, "sqlite3_bind_text error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-
-    uint32_t return_count = 0;
-    int32_t rc;
-    while ( ( rc = sqlite3_step( stmt ) ) == SQLITE_ROW ) {
-        if ( sqlite3_column_count( stmt ) != 9 ) break;
-        database_file& ret = buffer_out[return_count];
-        ret.id              = sqlite3_column_int64( stmt, 0 );
-        const char* temp    =  (const char*)sqlite3_column_text( stmt, 1 );
-        ret.shortname       = temp ? temp : "";
-        ret.filetype_id     = sqlite3_column_int64( stmt, 2 );
-        ret.path_id         = sqlite3_column_int64( stmt, 3 );
-        temp                = (const char*)sqlite3_column_text( stmt, 4 );
-        ret.path_to_file    = temp ? temp : "";
-        ret.filesize        = sqlite3_column_int64( stmt, 5 );
-        ret.filetimewrite   = datetime_to_std_time_t( (const char*)sqlite3_column_text( stmt, 6 ) );
-        temp                = (const char*)sqlite3_column_text( stmt, 7 );
-        ret.md5             = temp ? temp : "";
-        temp                = (const char*)sqlite3_column_text( stmt, 8 );
-        ret.name_miniature  = temp ? temp : "";
-        return_count++;
-    }
-
-    if ( rc != SQLITE_DONE ) {
-        fprintf( stderr, "sqlite3_prepare_v2 error : %s\n", sqlite3_errmsg( db ) );
-        sqlite3_finalize( stmt );
-        return false;
-    }
-
-    sqlite3_finalize( stmt );
-
-    count = return_count;
-
-    return true;
+    return false;
 }
     
 void database_main::testfill() {
