@@ -242,6 +242,12 @@ void database_main::testfill() {
     sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file1.png', 'dirA/file1.png', 1, 1 );" );
     sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file2.png', 'dirB/file2.png', 2, 1 );" );
     sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file3.png', 'dirC/file3.png', 2, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file4.png', 'dirC/file4.png', 2, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file5.png', 'dirC/file5.png', 2, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file6.png', 'dirC/file6.png', 2, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file7.png', 'dirC/file7.png', 2, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file8.png', 'dirE/file8.png', 3, 2 );" );
+    sql_execute_noresult( "INSERT INTO files (shortname, path_to_file, path_id, filetype_id) VALUES ( 'file9.png', 'dirE/file9.png', 3, 2 );" );
 
     sql_execute_noresult( "INSERT INTO file_set_tag (file_id, tag_id) VALUES ( 1, 1 );" );
     sql_execute_noresult( "INSERT INTO file_set_tag (file_id, tag_id) VALUES ( 1, 2 );" );

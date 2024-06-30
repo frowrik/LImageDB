@@ -34,14 +34,6 @@ public:
 
 		if (ImGui::GetFrameCount()==1) do_query = true;
 
-		//ImGui::SetNextWindowPos(ImVec2(0,0), ImGuiCond_Always);
-		//ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
-        const ImGuiViewport *main_viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos( ImVec2( main_viewport->WorkPos.x + 0, main_viewport->WorkPos.y + 0 ), ImGuiCond_FirstUseEver );
-        ImGui::SetNextWindowSize( ImVec2( 550, 680 ), ImGuiCond_FirstUseEver );
-
-        ImGui::Begin( "Database", nullptr, ImGuiWindowFlags_NoDocking );
-
 		if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_None)) {
 
 			if (ImGui::BeginTabItem("SQL")) {
@@ -304,8 +296,6 @@ public:
 			}
 			ImGui::EndTabBar();
 		}
-
-		ImGui::End();
 	}
 
 private:
