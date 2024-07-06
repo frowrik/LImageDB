@@ -8,3 +8,10 @@ namespace ui {
     void free();
     void draw();
 }
+
+#include "ui_actions.h"
+#include "ui_browser.h"
+#include "ui_property.h"
+#include "ui_menu.h"
+#include "ui_log.h"
+

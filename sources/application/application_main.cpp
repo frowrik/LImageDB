@@ -24,7 +24,7 @@ void Run_Free() {
 bool Run_Draw() {
     ui::draw();
 
-    ImGui::ShowDemoWindow();
+    //ImGui::ShowDemoWindow();
 
     return true;
 }

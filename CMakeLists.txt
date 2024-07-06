@@ -129,3 +129,4 @@ add_executable(LImageDB ${EXE_FILES})
 target_link_libraries(LImageDB PUBLIC application_base database actions ui )
 
 set_target_properties(LImageDB PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
